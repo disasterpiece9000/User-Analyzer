@@ -22,7 +22,7 @@ import re
 sid = SentimentIntensityAnalyzer()
 
 # Start instance of Reddit
-reddit = praw.Reddit('shillbot')
+reddit = praw.Reddit('ShillDetector9000')
 
 # Read stop words from files
 with open('stopwords.txt', 'r') as words:
@@ -141,10 +141,10 @@ def analyzeAccntActivity(accnt_activity, accnt_created):
 	else:
 		return None
 		
-def analyzeNegativeKarma(karma_count):
+def analyzeNegativeKarma(neg_count, all_count):
 	neg_str = "They don't get along well with people from these subreddits: \n\nSubreddit | # negative comments |  \n---------|:----------:"
-	for key, value in karma_count.most_common(5):
-		if value >= 5:
+	for key, value in neg_count.most_common(5):
+		if value >= 5 and (neg_count[key]/float(all_count[key])) >= 0.10:
 			neg_str += ('\n' + key + ' | ' + str(value))
 	if neg_str == "They don't get along well with people from these subreddits: \n\nSubreddit | # negative comments |  \n---------|:----------:":
 		return None
@@ -190,7 +190,7 @@ def concatReply(reply_list):
 	for section in reply_list:
 		if section != None:
 			reply_str += (section + '\n\n')
-	reply_str += "-----\n\n[What is this?](https://www.reddit.com/r/bot4bottesting/comments/99gpqo/what_is_this/) | [Remove this comment](https://www.reddit.com/r/bot4bottesting/comments/99gq8o/remove_this_comment/) | [Contact the owner](https://www.reddit.com/user/shimmyjimmy97/)"
+	reply_str += "-----\n\n[What is this?](https://www.reddit.com/user/bot4bot/comments/aecodj/welcome_to_ubot4bot/) | [Remove this comment](https://www.reddit.com/user/bot4bot/comments/aecx9n/remove_this_comment/) | [Contact the owner](https://www.reddit.com/user/shimmyjimmy97/)"
 	return reply_str
 
 # Analyze word frequency and sentiment for each sentence
@@ -233,8 +233,10 @@ def markovChain(text):
 	
 def linkComment(message, reply_message):
 	print ('Entered comment reply mode')
-	oc_reply = "[View your report here](https://www.reddit.com/r/bot4bottesting/comments/9aagip/megathread_bot_replies/"
-	megathread = reddit.submission(id='9aagip')
+	oc_reply = "Sorry for the delay. /u/bot4bot is back up and running, with more features coming soon!\n\n[View your report here](https://www.reddit.com/user/bot4bot/comments/aectw1/bot_replies_megathread/)"
+	megathread = reddit.submission(id='aectw1')
+	author = message.author
+	
 	try:
 		mt_comment = megathread.reply(reply_message)
 		time.sleep(15)
@@ -242,13 +244,19 @@ def linkComment(message, reply_message):
 		print ('RateLimit: sleeping for 2 min')
 		time.sleep(120)
 		mt_comment = megathread.reply(reply_message)
+		
 	oc_reply += str(mt_comment.fullname)[3:]
-	oc_reply += "/)\n\n-----\n\n[What is this?](https://www.reddit.com/r/bot4bottesting/comments/99gpqo/what_is_this/) | [Remove this comment](https://www.reddit.com/r/bot4bottesting/comments/99gq8o/remove_this_comment/) | [Contact the owner](https://www.reddit.com/user/shimmyjimmy97/)"
+	
+	author.message('Sorry for the delay. Your report has been completed', oc_reply)
+	
+	oc_reply += "/)\n\n-----\n\n[What is this?](https://www.reddit.com/user/bot4bot/comments/aecodj/welcome_to_ubot4bot/) | [Remove this comment](https://www.reddit.com/user/bot4bot/comments/aecx9n/remove_this_comment/) | [Contact the owner](https://www.reddit.com/user/shimmyjimmy97/)"
+	
 	try:
 		message.reply(oc_reply)
 	except (praw.exceptions.APIException, prawcore.exceptions.Forbidden):
 		print('Comment deleted')
 		message.mark_read()
+		
 	message.mark_read()
 	
 	
@@ -267,6 +275,8 @@ def analyzeUser(user):
 	subj_sent = Counter()
 	# Counts karma
 	karma_count = Counter()
+	# Counts all comments
+	all_com = Counter()
 	# Counts negative comments
 	neg_com = Counter()
 
@@ -282,9 +292,11 @@ def analyzeUser(user):
 	print('\tGetting comments')
 	for comment in comments:
 		# Log comment activity
+		all_com[str(comment.subreddit)] += 1
 		sub_activity[str(comment.subreddit)] += 1
 		comment_score = comment.score
 		karma_count[str(comment.subreddit)] += comment_score
+		
 		if comment_score < 0:
 			neg_com[str(comment.subreddit)] += 1
 		
@@ -334,7 +346,7 @@ def analyzeUser(user):
 		if(markov_str != None):
 			reply_list.append(markov_str)
 			print ('\t\tGot avg sentence')
-	neg_table = analyzeNegativeKarma(neg_com)
+	neg_table = analyzeNegativeKarma(neg_com, all_com)
 	if(neg_table != None):
 		reply_list.append(neg_table)
 	print ('\t\tGot negative comment subs')
@@ -352,16 +364,18 @@ while(True):
 		for message in messages:
 			print ('Message: ' + message.body)
 			message_text = message.body.split()
-			accnt_call = message_text.pop(0)
-			if 'bot4bot' not in accnt_call:
+			
+			if len(message_text) > 2:
 				message.mark_read()
-				print('Message marked read')
+				print('Message not identified as an account call')
 				continue
-			try:
+			elif len(message_text) == 2:
+				accnt_call = message_text.pop(0)
 				username = message_text.pop(0)
-			except IndexError:
-				message.mark_read()
-				continue
+			elif len(message_text) == 1:
+				username = message_text.pop(0)
+				
+				
 			print ('Message about user: ' + username + ' accepted')
 			if username.startswith("/u/"):
 				target_user = username[3:]
@@ -387,7 +401,7 @@ while(True):
 				message.mark_read()
 				print ('Message resolved')
 		time.sleep(10)
-	except (prawcore.exceptions.ServerError, prawcore.exceptions.NotFound):
+	except:
 		print ('ERROR: Server Error\nSleeping for 5 min')
 		time.sleep(300)
 		pass
