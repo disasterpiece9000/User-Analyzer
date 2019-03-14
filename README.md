@@ -22,7 +22,7 @@ This bot is designed to give insight into a Reddit users history without having 
 ____
 
 ## Niceness Score:
-This score is derived from a sentiment analysis of the user's comment text. This is done using [NLTK's](https://www.nltk.org/) built in sentiment analysis. The math behind how I get the niceness score is a bit hard to put into words, so I'll just post the relevant portion of code below:
+This score is derived from a sentiment analysis of the user's comment text. This is done using [NLTK's](https://www.nltk.org/) built in sentiment analysis. If a comment has a sentiment score less than -0.5 then that comment is counted as negative, and if a comment has a score greater than 0.5 then that comment is counted as positive. The math behind how I get the niceness score is a bit hard to put into words, so I'll just post the relevant portion of code below:
 
 ```
 total_sent = count_neg + count_pos
